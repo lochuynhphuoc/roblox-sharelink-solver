@@ -169,24 +169,14 @@ export default function Home() {
   return (
     <main className="page">
       <div className="container">
-        <header className="header">
-          <div className="brand">
-            <span className="brand-mark">R</span>
-            <span>RoLink Resolver</span>
-          </div>
-
-          <span className="badge">
-            Share Link Resolver
-          </span>
-        </header>
-
         <section className="hero">
           <p className="eyebrow">
-            ROBLOX DEVELOPER TOOL
+            <span className="eyebrow-dot" />
+            ROBLOX SHARE LINK RESOLVER
           </p>
 
           <h1>
-            <span>RoLink</span> Resolver
+            <span>Ro-Link</span> Resolver
           </h1>
 
           <p className="description">
@@ -434,12 +424,6 @@ export default function Home() {
             </span>
           </div>
         </section>
-
-        <footer>
-          <span>RoLink Resolver</span>
-          <span>•</span>
-          <span>Share Link Resolver</span>
-        </footer>
       </div>
     </main>
   );

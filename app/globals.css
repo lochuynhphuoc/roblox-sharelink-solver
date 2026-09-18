@@ -655,3 +655,246 @@ footer {
     flex-wrap: wrap;
   }
 }
+
+/* Resolver-specific visual language: image-led, compact, and accent-driven. */
+body {
+  background: #0b070d;
+  color: #fff8fb;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+}
+
+.page {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(8, 4, 9, 0.7) 0%, rgba(8, 4, 9, 0.44) 55%, rgba(8, 4, 9, 0.68) 100%),
+    linear-gradient(180deg, rgba(43, 8, 29, 0.18), rgba(7, 4, 9, 0.84)),
+    url("/resolver-background.svg") center / cover fixed;
+}
+
+.page::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: radial-gradient(circle at 76% 28%, rgba(244, 83, 151, 0.14), transparent 28%);
+  content: "";
+  pointer-events: none;
+}
+
+.container {
+  width: min(1080px, calc(100% - 64px));
+  align-items: center;
+}
+
+.header {
+  height: 82px;
+  border-bottom-color: rgba(255, 255, 255, 0.15);
+}
+
+.brand {
+  color: #fff9fc;
+  letter-spacing: -0.02em;
+}
+
+.brand-mark {
+  border-color: rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(12, 8, 14, 0.68);
+  color: #ff9bc4;
+  box-shadow: 0 0 24px rgba(255, 77, 153, 0.12);
+}
+
+.badge {
+  border-color: rgba(255, 155, 196, 0.35);
+  background: rgba(57, 12, 38, 0.48);
+  color: #ff9bc4;
+}
+
+.hero {
+  width: min(920px, 100%);
+  max-width: 920px;
+  margin: auto;
+  padding: clamp(88px, 14vh, 148px) 0 100px;
+  text-align: left;
+}
+
+.eyebrow,
+.result-label {
+  color: #ff8fbc;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.eyebrow-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #ff8fbc;
+  box-shadow: 0 0 12px rgba(255, 143, 188, 0.7);
+}
+
+h1 {
+  color: #c7bbc2;
+  font-size: clamp(48px, 8vw, 94px);
+  letter-spacing: -0.065em;
+  text-shadow: 0 6px 30px rgba(0, 0, 0, 0.22);
+}
+
+h1 span {
+  color: #fff8fb;
+}
+
+.description {
+  max-width: 540px;
+  margin: 24px 0 34px;
+  color: #c6b9c1;
+}
+
+.resolver,
+.results-section,
+.loading-box,
+.error {
+  text-align: left;
+}
+
+.mode-switch {
+  margin-bottom: 26px;
+  border-color: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(13, 9, 15, 0.66);
+}
+
+.mode-switch button {
+  color: #9f929b;
+}
+
+.mode-switch button.active {
+  background: #32202b;
+  color: #fff8fb;
+  box-shadow: inset 0 0 0 1px rgba(255, 155, 196, 0.24);
+}
+
+.resolver label {
+  color: #f2e8ed;
+}
+
+.input-row {
+  max-width: 920px;
+}
+
+.input-row input,
+textarea {
+  border-color: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  background: rgba(12, 8, 14, 0.72);
+  color: #fff8fb;
+  box-shadow: 0 14px 45px rgba(0, 0, 0, 0.16);
+}
+
+.input-row input:focus,
+textarea:focus {
+  border-color: #f47dad;
+  box-shadow: 0 0 0 3px rgba(244, 125, 173, 0.12);
+}
+
+.input-row button,
+.bulk-actions button {
+  border-color: #ff9bc4;
+  border-radius: 12px;
+  background: #ff93bd;
+  color: #220a17;
+  box-shadow: 0 10px 28px rgba(245, 78, 145, 0.2);
+}
+
+.input-row button:hover,
+.bulk-actions button:hover {
+  background: #ffacd0;
+}
+
+.bulk-actions .secondary-button,
+.copy-all-button,
+.result-id button {
+  border-color: rgba(255, 155, 196, 0.32);
+  background: rgba(45, 19, 36, 0.82);
+  color: #ffd8e8;
+}
+
+.loading-box,
+.results-list {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(12, 8, 14, 0.76);
+}
+
+.loading-spinner {
+  border-color: #4c263b;
+  border-top-color: #ff93bd;
+}
+
+.result-row {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.results-header strong,
+.result-link strong,
+.result-id strong {
+  color: #fff8fb;
+}
+
+.status.success {
+  background: #203a32;
+  color: #8ff0c5;
+}
+
+.error {
+  border-color: rgba(255, 112, 142, 0.35);
+  background: rgba(57, 12, 25, 0.72);
+  color: #ffc4cf;
+}
+
+.info,
+footer {
+  color: #95848e;
+}
+
+@media (max-width: 700px) {
+  .container {
+    width: min(100% - 32px, 920px);
+  }
+
+  .hero {
+    padding: 76px 0 60px;
+  }
+
+  h1 {
+    font-size: clamp(48px, 15vw, 74px);
+  }
+
+  .description {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 420px) {
+  .container {
+    width: calc(100% - 24px);
+  }
+
+  .hero {
+    padding-top: 60px;
+  }
+
+  .header {
+    height: 70px;
+  }
+
+  .brand {
+    font-size: 16px;
+  }
+}
