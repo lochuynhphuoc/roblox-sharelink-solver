@@ -1,69 +1,446 @@
-import Image from "next/image";
+"use client";
+
+import {
+  FormEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
+type Result = {
+  link: string;
+  success: boolean;
+  id?: string;
+  name?: string;
+  error?: string;
+};
 
 export default function Home() {
+  const [mode, setMode] = useState<"single" | "bulk">(
+    "single"
+  );
+  const [input, setInput] = useState("");
+  const [results, setResults] = useState<Result[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(
+    null
+  );
+  const [copiedAll, setCopiedAll] = useState(false);
+  const [error, setError] = useState("");
+
+  const resultsRef = useRef<HTMLDivElement>(null);
+
+  const links = useMemo(() => {
+    return [
+      ...new Set(
+        input
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean)
+      ),
+    ];
+  }, [input]);
+
+  const successCount = results.filter(
+    (result) => result.success
+  ).length;
+
+  async function handleResolve(event: FormEvent) {
+    event.preventDefault();
+
+    setResults([]);
+    setError("");
+    setCopiedAll(false);
+    setCopiedId(null);
+
+    const linksToResolve =
+      mode === "single"
+        ? [input.trim()].filter(Boolean)
+        : links;
+
+    if (linksToResolve.length === 0) {
+      setError("Paste at least one Roblox share link.");
+      return;
+    }
+
+    if (linksToResolve.length > 50) {
+      setError("Maximum 50 links per request.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/resolve", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          links: linksToResolve,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setError(
+          data.error || "Failed to resolve links."
+        );
+        return;
+      }
+
+      const resolvedResults: Result[] =
+        data.results || [];
+
+      setResults(resolvedResults);
+
+      if (mode === "bulk") {
+        setTimeout(() => {
+          resultsRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }, 100);
+      }
+    } catch {
+      setError("Unable to connect to the resolver.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function copyId(id: string) {
+    try {
+      await navigator.clipboard.writeText(id);
+
+      setCopiedId(id);
+
+      setTimeout(() => {
+        setCopiedId(null);
+      }, 2000);
+    } catch {
+      setError("Unable to copy ID to clipboard.");
+    }
+  }
+
+  async function copyAllIds() {
+    const ids = results
+      .filter(
+        (result) => result.success && result.id
+      )
+      .map((result) => result.id)
+      .join("\n");
+
+    if (!ids) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(ids);
+
+      setCopiedAll(true);
+
+      setTimeout(() => {
+        setCopiedAll(false);
+      }, 2000);
+    } catch {
+      setError("Unable to copy IDs to clipboard.");
+    }
+  }
+
+  function clearAll() {
+    setInput("");
+    setResults([]);
+    setError("");
+    setCopiedId(null);
+    setCopiedAll(false);
+  }
+
+  function changeMode(nextMode: "single" | "bulk") {
+    setMode(nextMode);
+    setInput("");
+    setResults([]);
+    setError("");
+    setCopiedId(null);
+    setCopiedAll(false);
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="page">
+      <div className="container">
+        <header className="header">
+          <div className="brand">
+            <span className="brand-mark">R</span>
+            <span>RoLink Resolver</span>
+          </div>
+
+          <span className="badge">
+            Share Link Resolver
+          </span>
+        </header>
+
+        <section className="hero">
+          <p className="eyebrow">
+            ROBLOX DEVELOPER TOOL
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+          <h1>
+            <span>RoLink</span> Resolver
+          </h1>
+
+          <p className="description">
+            Convert Roblox Share Links into their
+            corresponding Roblox IDs quickly and
+            efficiently.
+          </p>
+
+          <div className="mode-switch">
+            <button
+              type="button"
+              className={
+                mode === "single" ? "active" : ""
+              }
+              onClick={() => changeMode("single")}
+              disabled={loading}
+            >
+              Single
+            </button>
+
+            <button
+              type="button"
+              className={
+                mode === "bulk" ? "active" : ""
+              }
+              onClick={() => changeMode("bulk")}
+              disabled={loading}
+            >
+              Bulk
+            </button>
+          </div>
+
+          <form
+            onSubmit={handleResolve}
+            className="resolver"
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+            <label htmlFor="share-link">
+              {mode === "single"
+                ? "Roblox Share Link"
+                : "Roblox Share Links"}
+            </label>
+
+            {mode === "single" ? (
+              <div className="input-row">
+                <input
+                  id="share-link"
+                  type="url"
+                  placeholder="https://www.roblox.com/share?code=..."
+                  value={input}
+                  onChange={(event) =>
+                    setInput(event.target.value)
+                  }
+                  disabled={loading}
+                />
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading
+                    ? "Resolving..."
+                    : "Resolve"}
+                </button>
+              </div>
+            ) : (
+              <>
+                <textarea
+                  id="share-link"
+                  placeholder={
+                    "Paste one Roblox share link per line...\n\nhttps://www.roblox.com/share?code=...\nhttps://www.roblox.com/share?code=...\nhttps://www.roblox.com/share?code=..."
+                  }
+                  value={input}
+                  onChange={(event) =>
+                    setInput(event.target.value)
+                  }
+                  disabled={loading}
+                  spellCheck={false}
+                />
+
+                <div className="bulk-meta">
+                  <span>
+                    {links.length}{" "}
+                    {links.length === 1
+                      ? "link"
+                      : "links"}
+                  </span>
+
+                  <span>Maximum 50</span>
+                </div>
+
+                <div className="bulk-actions">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                  >
+                    {loading
+                      ? "Resolving..."
+                      : `Resolve ${
+                          links.length > 1
+                            ? `${links.length} Links`
+                            : "Links"
+                        }`}
+                  </button>
+
+                  {input && !loading && (
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={clearAll}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </form>
+
+          {loading && mode === "bulk" && (
+            <div className="loading-box">
+              <div className="loading-spinner" />
+
+              <div>
+                <strong>
+                  Resolving links...
+                </strong>
+
+                <span>
+                  Roblox API requests are being
+                  processed.
+                </span>
+              </div>
+            </div>
+          )}
+
+          {results.length > 0 && (
+            <div
+              className="results-section"
+              ref={resultsRef}
+            >
+              <div className="results-header">
+                <div>
+                  <span className="result-label">
+                    RESULTS
+                  </span>
+
+                  <strong>
+                    {successCount} / {results.length}{" "}
+                    resolved
+                  </strong>
+                </div>
+
+                {successCount > 0 && (
+                  <button
+                    type="button"
+                    className="copy-all-button"
+                    onClick={copyAllIds}
+                  >
+                    {copiedAll
+                      ? "Copied All"
+                      : "Copy All IDs"}
+                  </button>
+                )}
+              </div>
+
+              <div className="results-list">
+                {results.map((result, index) => (
+                  <div
+                    className="result-row"
+                    key={`${result.link}-${index}`}
+                  >
+                    <div className="result-number">
+                      {String(index + 1).padStart(
+                        2,
+                        "0"
+                      )}
+                    </div>
+
+                    <div className="result-link">
+                      {result.name && (
+                        <strong>{result.name}</strong>
+                      )}
+
+                      <span>{result.link}</span>
+                    </div>
+
+                    <div className="result-id">
+                      {result.success && result.id ? (
+                        <>
+                          <strong>
+                            {result.id}
+                          </strong>
+
+                          <button
+                            type="button"
+                            className={
+                              copiedId === result.id
+                                ? "copied"
+                                : ""
+                            }
+                            onClick={() =>
+                              copyId(result.id!)
+                            }
+                          >
+                            {copiedId === result.id
+                              ? "Copied"
+                              : "Copy"}
+                          </button>
+                        </>
+                      ) : (
+                        <span className="failed">
+                          {result.error || "Failed"}
+                        </span>
+                      )}
+                    </div>
+
+                    <div
+                      className={
+                        result.success
+                          ? "status success"
+                          : "status failed-status"
+                      }
+                    >
+                      {result.success ? "✓" : "×"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="error">
+              {error}
+            </div>
+          )}
+
+          <div className="info">
+            <span>50 links max</span>
+            <span>•</span>
+            <span>One link per line</span>
+            <span>•</span>
+            <span>
+              Duplicates removed automatically
+            </span>
+          </div>
+        </section>
+
+        <footer>
+          <span>RoLink Resolver</span>
+          <span>•</span>
+          <span>Share Link Resolver</span>
+        </footer>
+      </div>
+    </main>
   );
 }
