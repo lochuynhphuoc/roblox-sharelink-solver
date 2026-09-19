@@ -157,6 +157,15 @@ export default function Home() {
     setCopiedAll(false);
   }
 
+  function handleInputChange(value: string) {
+    if (!value.trim()) {
+      clearAll();
+      return;
+    }
+
+    setInput(value);
+  }
+
   function changeMode(nextMode: "single" | "bulk") {
     setMode(nextMode);
     setInput("");
@@ -167,7 +176,7 @@ export default function Home() {
   }
 
   return (
-    <main className="page">
+    <main className={`page ${mode}-mode`}>
       <div className="container">
         <section className="hero">
           <p className="eyebrow">
@@ -227,7 +236,7 @@ export default function Home() {
                   placeholder="https://www.roblox.com/share?code=..."
                   value={input}
                   onChange={(event) =>
-                    setInput(event.target.value)
+                    handleInputChange(event.target.value)
                   }
                   disabled={loading}
                 />
@@ -250,7 +259,7 @@ export default function Home() {
                   }
                   value={input}
                   onChange={(event) =>
-                    setInput(event.target.value)
+                    handleInputChange(event.target.value)
                   }
                   disabled={loading}
                   spellCheck={false}
