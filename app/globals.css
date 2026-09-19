@@ -914,7 +914,9 @@ footer {
     padding: 0 18px;
     font-size: 15px;
     line-height: 1.4;
+    appearance: none;
     -webkit-appearance: none;
+    -moz-appearance: none;
   }
 
   .input-row button {
