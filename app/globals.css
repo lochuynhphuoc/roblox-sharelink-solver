@@ -892,6 +892,16 @@ footer {
     min-height: 100svh;
   }
 
+  .page.bulk-mode {
+    min-height: 100svh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .page.bulk-mode .container {
+    min-height: 100svh;
+  }
+
   .input-row {
     flex-direction: column;
     gap: 12px;
