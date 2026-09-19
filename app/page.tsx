@@ -433,6 +433,17 @@ export default function Home() {
             </span>
           </div>
         </section>
+
+        <footer className="rokit-footer">
+          <a
+            className="rokit-footer-link"
+            href="https://rokit.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Want more Roblox utilities? Explore RoKit <span aria-hidden="true">-&gt;</span>
+          </a>
+        </footer>
       </div>
     </main>
   );

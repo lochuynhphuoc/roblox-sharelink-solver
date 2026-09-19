@@ -122,6 +122,33 @@ h1 span {
   line-height: 1.6;
 }
 
+.rokit-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: auto;
+  padding: 28px 0 24px;
+  font-size: 12px;
+}
+
+.rokit-footer-link {
+  color: #777b84;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.rokit-footer-link:hover {
+  color: #b8bbc2;
+  transform: translateX(2px);
+}
+
+@media (max-width: 480px) {
+  .rokit-footer {
+    padding-top: 22px;
+  }
+}
+
 .mode-switch {
   display: inline-flex;
   padding: 3px;
