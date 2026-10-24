@@ -1,6 +1,12 @@
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import type { Collection } from "mongodb";
+import {
+  getActiveManagedCookie,
+  markCookieExpired,
+  updateCookieStatus,
+} from "@/lib/cookie-vault";
 
 const RESOLVE_URL =
   "https://apis.roblox.com/sharelinks/v1/resolve-link";
@@ -10,7 +16,42 @@ const COLLECTION_NAME = "resolved_links";
 const MAX_LINKS = 50;
 const REQUEST_DELAY_MS = 300;
 
-let csrfToken: string | null = null;
+let csrfToken: { fingerprint: string; value: string } | null = null;
+
+class RobloxCookieExpiredError extends Error {
+  constructor() {
+    super("Invalid Roblox cookie");
+  }
+}
+
+async function getResolverCookie() {
+  const managedCookie = await getActiveManagedCookie();
+
+  if (managedCookie) {
+    if (managedCookie.status === "expired") {
+      throw new RobloxCookieExpiredError();
+    }
+
+    if (managedCookie.status !== "valid") {
+      throw new Error(
+        "The selected Roblox cookie must pass a validity check before use."
+      );
+    }
+
+    return {
+      id: managedCookie.id,
+      value: managedCookie.value,
+    };
+  }
+
+  const value = process.env.COOKIE;
+
+  if (!value) {
+    throw new Error("No active Roblox cookie. Add and select one in /admin.");
+  }
+
+  return { id: null, value };
+}
 
 type ParsedShareLink = {
   originalLink: string;
@@ -133,15 +174,11 @@ function parseShareUrl(link: string): ParsedShareLink {
   };
 }
 
-async function ensureCsrf(): Promise<string> {
-  if (csrfToken) {
-    return csrfToken;
-  }
+async function ensureCsrf(cookie: string): Promise<string> {
+  const fingerprint = createHash("sha256").update(cookie).digest("hex");
 
-  const cookie = process.env.COOKIE;
-
-  if (!cookie) {
-    throw new Error("Missing Roblox cookie");
+  if (csrfToken?.fingerprint === fingerprint) {
+    return csrfToken.value;
   }
 
   const response = await fetch(
@@ -151,6 +188,7 @@ async function ensureCsrf(): Promise<string> {
       headers: {
         Cookie: `.ROBLOSECURITY=${cookie}`,
       },
+      redirect: "error",
     }
   );
 
@@ -158,7 +196,7 @@ async function ensureCsrf(): Promise<string> {
 
   if (!token) {
     if (response.status === 401) {
-      throw new Error("Invalid Roblox cookie");
+      throw new RobloxCookieExpiredError();
     }
 
     throw new Error(
@@ -166,22 +204,17 @@ async function ensureCsrf(): Promise<string> {
     );
   }
 
-  csrfToken = token;
+  csrfToken = { fingerprint, value: token };
 
   return token;
 }
 
 async function resolveFromRoblox(
   shareCode: string,
-  linkType: string
+  linkType: string,
+  cookie: string
 ): Promise<string> {
-  const cookie = process.env.COOKIE;
-
-  if (!cookie) {
-    throw new Error("Missing Roblox cookie");
-  }
-
-  let token = await ensureCsrf();
+  let token = await ensureCsrf(cookie);
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const response = await fetch(RESOLVE_URL, {
@@ -195,16 +228,18 @@ async function resolveFromRoblox(
         linkId: shareCode,
         linkType,
       }),
+      redirect: "error",
     });
 
     if (response.status === 403 && attempt === 0) {
       csrfToken = null;
-      token = await ensureCsrf();
+      token = await ensureCsrf(cookie);
       continue;
     }
 
     if (response.status === 401) {
-      throw new Error("Invalid Roblox cookie");
+      csrfToken = null;
+      throw new RobloxCookieExpiredError();
     }
 
     if (!response.ok) {
@@ -409,10 +444,16 @@ async function resolveSingle(
     };
   }
 
+  let managedCookieId: string | null = null;
+
   try {
+    const selectedCookie = await getResolverCookie();
+    managedCookieId = selectedCookie.id;
+
     const id = await resolveFromRoblox(
       parsed.shareCode,
-      parsed.linkType
+      parsed.linkType,
+      selectedCookie.value
     );
 
     const name = await getRobloxItemName(
@@ -426,6 +467,10 @@ async function resolveSingle(
       name
     );
 
+    if (managedCookieId) {
+      await updateCookieStatus(managedCookieId, "valid");
+    }
+
     return {
       link: parsed.originalLink,
       success: true,
@@ -434,6 +479,13 @@ async function resolveSingle(
       source: "roblox",
     };
   } catch (error) {
+    if (
+      error instanceof RobloxCookieExpiredError &&
+      managedCookieId
+    ) {
+      await markCookieExpired(managedCookieId);
+    }
+
     return {
       link: parsed.originalLink,
       success: false,

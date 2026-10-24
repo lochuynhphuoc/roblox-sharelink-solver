@@ -1,36 +1,120 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ro-Link Resolver
 
-## Getting Started
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16-000000?logo=next.js&logoColor=white" alt="Next.js 16" />
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white" alt="React 19" />
+  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" alt="TypeScript 5" />
+  <img src="https://img.shields.io/badge/MongoDB-7-47A248?logo=mongodb&logoColor=white" alt="MongoDB 7" />
+</p>
 
-First, run the development server:
+A lightweight web app for converting Roblox share links into their matching Roblox item IDs. It supports both single-link checks and bulk processing for faster workflows.
+
+## Overview
+
+This project helps users:
+
+- resolve one or many Roblox share links
+- retrieve the relevant Roblox ID and item name
+- validate share URL format before processing
+- copy successful IDs directly to the clipboard
+- reduce repeated requests with MongoDB-based caching
+
+## Key Features
+
+- Single mode for resolving one link at a time
+- Bulk mode for processing multiple links in one batch
+- Automatic validation of Roblox share URL structure
+- Clear feedback for invalid links, expired cookies, or API errors
+- Storage of resolved results in the `resolved_links` collection
+- Admin panel at `/admin` for encrypted cookie management and manual selection
+- Simple and responsive user interface
+
+## Technology Stack
+
+| Category        | Technology                 |
+| --------------- | -------------------------- |
+| Frontend        | Next.js, React, TypeScript |
+| Backend         | Next.js API Routes         |
+| Database        | MongoDB                    |
+| API Integration | Roblox Share Link API      |
+| Hosting         | Vercel                     |
+
+## Project Structure
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+roblox-sharelink-solver/
+├── app/
+│   ├── api/
+│   │   ├── admin/
+│   │   │   ├── cookies/route.ts
+│   │   │   └── login/route.ts
+│   │   └── resolve/
+│   │       └── route.ts
+│   ├── admin/
+│   │   ├── admin.module.css
+│   │   └── page.tsx
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+├── lib/
+│   ├── admin-auth.ts
+│   ├── cookie-vault.ts
+│   └── mongodb.ts
+├── package.json
+├── tsconfig.json
+├── next.config.ts
+├── README.md
+└── public/
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Configure the database URI and these server-side values:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+ADMIN_PASS=choose-your-own-admin-password
+ADMIN_SESSION_SECRET=use-a-random-secret-at-least-32-characters
+COOKIE_ENCRYPTION_KEY=base64-encoded-random-32-byte-key
+```
 
-## Learn More
+Generate independent random values for the session secret and encryption key. For example, with Node.js:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Keep these values server-side. Back up `COOKIE_ENCRYPTION_KEY` securely: changing or losing it makes stored cookies unreadable. The legacy `COOKIE` environment variable remains supported as a fallback only when no admin-managed cookie is selected.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```env
+COOKIE=your_robloxsecurity_cookie
+MONGODB_URI=mongodb+srv://username:password@host/dbname
+```
 
-## Deploy on Vercel
+> Note: `COOKIE` is the `.ROBLOSECURITY` value used when calling the Roblox API. It should be kept private and never exposed.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Cookie management
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `/admin` requires the configured admin password and uses an HTTP-only, same-site session cookie.
+- Cookie values are encrypted with AES-256-GCM before they are stored in MongoDB. The admin API returns labels, status, and timestamps only.
+- You can add up to 20 values at once (one per line), test validity, replace a value, remove it, or select a validated value manually.
+- A Roblox `401` marks the selected managed cookie as expired. It remains selected and resolution stops; the resolver never switches to another stored cookie automatically.
+- A cookie's status can also be checked manually from the admin panel. A successful check is required before selecting it.
+- The resolver uses only the explicitly selected managed cookie. It does not refresh, rotate, or attempt to restore Roblox sessions.
+
+## Notes
+
+- The Roblox API may require a valid CSRF token and authenticated cookie
+- Invalid or expired cookies can cause resolution failures
+- Bulk requests are currently capped at 50 links per request
+- Anyone with admin access can manage credentials that the resolver will use; restrict access to `/admin` and comply with Roblox policies
+
+## License
+
+This project is intended for personal or internal use. If used in a production environment, review Roblox API policies and terms carefully.
+
+---
+
+<p align="center">
+  <strong>Ro-Link Resolver</strong><br>
+  Built for fast Roblox link resolution.
+</p>
