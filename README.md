@@ -15,6 +15,7 @@ This project helps users:
 
 - resolve one or many Roblox share links
 - retrieve the relevant Roblox ID and item name
+- show the resolved destination URL for successful links
 - validate share URL format before processing
 - copy successful IDs directly to the clipboard
 - reduce repeated requests with MongoDB-based caching
@@ -24,6 +25,7 @@ This project helps users:
 - Single mode for resolving one link at a time
 - Bulk mode for processing multiple links in one batch
 - Automatic validation of Roblox share URL structure
+- Clickable destination URLs in successful resolution results
 - Clear feedback for invalid links, expired cookies, or API errors
 - Storage of resolved results in the `resolved_links` collection
 - Admin panel at `/admin` for encrypted cookie management and manual selection

@@ -460,6 +460,22 @@ textarea:focus {
   white-space: nowrap;
 }
 
+.result-destination {
+  display: block;
+  margin-top: 6px;
+  color: #a7c8ac;
+  font-family: monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.result-destination:hover {
+  color: #d0e8d4;
+  text-decoration: underline;
+}
+
 .result-id {
   display: flex;
   align-items: center;

@@ -13,6 +13,7 @@ type Result = {
   success: boolean;
   id?: string;
   name?: string;
+  resolvedUrl?: string;
   error?: string;
 };
 
@@ -386,6 +387,17 @@ export default function Home() {
                       )}
 
                       <span>{result.link}</span>
+
+                      {result.success && result.resolvedUrl && (
+                        <a
+                          className="result-destination"
+                          href={result.resolvedUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {result.resolvedUrl}
+                        </a>
+                      )}
                     </div>
 
                     <div className="result-id">

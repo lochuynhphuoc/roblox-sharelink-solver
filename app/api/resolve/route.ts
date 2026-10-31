@@ -64,9 +64,128 @@ type ResolveResult = {
   success: boolean;
   id?: string;
   name?: string;
+  resolvedUrl?: string;
   error?: string;
   source?: "cache" | "roblox";
 };
+
+function getResolvedUrl(value: unknown): string | null {
+  if (typeof value === "string") {
+    try {
+      const url = new URL(value);
+      const pathname = url.pathname.toLowerCase();
+      const isSharePath =
+        pathname === "/share" ||
+        pathname.startsWith("/share/") ||
+        pathname.startsWith("/sharelinks/");
+
+      if (
+        (url.protocol === "https:" || url.protocol === "http:") &&
+        !isSharePath
+      ) {
+        return url.toString();
+      }
+    } catch {
+      return null;
+    }
+
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const url = getResolvedUrl(item);
+
+      if (url) {
+        return url;
+      }
+    }
+
+    return null;
+  }
+
+  if (value && typeof value === "object") {
+    const object = value as Record<string, unknown>;
+    const preferredKeys = [
+      "resolvedUrl",
+      "canonicalUrl",
+      "targetUrl",
+      "url",
+    ];
+
+    for (const key of preferredKeys) {
+      const url = getResolvedUrl(object[key]);
+
+      if (url) {
+        return url;
+      }
+    }
+
+    for (const [key, nestedValue] of Object.entries(object)) {
+      if (
+        preferredKeys.includes(key) ||
+        key.toLowerCase().includes("share")
+      ) {
+        continue;
+      }
+
+      const url = getResolvedUrl(nestedValue);
+
+      if (url) {
+        return url;
+      }
+    }
+  }
+
+  return null;
+}
+
+function buildResolvedUrl(
+  linkType: string,
+  id: string,
+  name?: string
+): string | undefined {
+  const normalizedType = linkType.toLowerCase();
+  let path: string;
+
+  if (normalizedType.includes("bundle")) {
+    path = "bundles";
+  } else if (
+    normalizedType.includes("asset") ||
+    normalizedType.includes("item") ||
+    normalizedType.includes("catalog")
+  ) {
+    path = "catalog";
+  } else if (
+    normalizedType.includes("user") ||
+    normalizedType.includes("profile")
+  ) {
+    path = "users";
+  } else if (normalizedType.includes("group")) {
+    path = "groups";
+  } else if (
+    normalizedType.includes("game") ||
+    normalizedType.includes("experience") ||
+    normalizedType.includes("place")
+  ) {
+    path = "games";
+  } else {
+    return undefined;
+  }
+
+  const slug = name
+    ?.toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  const suffix =
+    path === "users"
+      ? `${id}/profile`
+      : `${id}${slug ? `/${slug}` : ""}`;
+
+  return `https://www.roblox.com/${path}/${suffix}`;
+}
 
 function extractId(value: unknown): string | null {
   if (!value || typeof value !== "object") {
@@ -213,7 +332,7 @@ async function resolveFromRoblox(
   shareCode: string,
   linkType: string,
   cookie: string
-): Promise<string> {
+): Promise<{ id: string; resolvedUrl: string | null }> {
   let token = await ensureCsrf(cookie);
 
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -265,7 +384,10 @@ async function resolveFromRoblox(
       throw new Error("Roblox returned no ID");
     }
 
-    return id;
+    return {
+      id,
+      resolvedUrl: getResolvedUrl(data),
+    };
   }
 
   throw new Error("Failed to resolve Roblox share link");
@@ -276,11 +398,15 @@ async function getRobloxItemName(
   linkType: string
 ): Promise<string | null> {
   const normalizedType = linkType.toLowerCase();
+  const itemType = normalizedType.includes("bundle")
+    ? "Bundle"
+    : normalizedType.includes("asset") ||
+        normalizedType.includes("item") ||
+        normalizedType.includes("catalog")
+      ? "Asset"
+      : null;
 
-  if (
-    normalizedType === "asset" ||
-    normalizedType === "item"
-  ) {
+  if (itemType) {
     try {
       const response = await fetch(
         "https://catalog.roblox.com/v1/catalog/items/details",
@@ -292,7 +418,7 @@ async function getRobloxItemName(
           body: JSON.stringify({
             items: [
               {
-                itemType: "Asset",
+                itemType,
                 id: Number(id),
               },
             ],
@@ -330,6 +456,7 @@ type CachedLinkDocument = {
   linkType: string;
   shareLink?: string;
   canonicalLink?: string;
+  resolvedUrl?: string;
   robloxId?: string;
   createdAt?: Date;
   lastUsedAt?: Date;
@@ -367,7 +494,8 @@ async function findCachedLinks(
 async function saveResolvedLink(
   parsed: ParsedShareLink,
   id: string,
-  name: string | null
+  name: string | null,
+  resolvedUrl: string | undefined
 ) {
   const collection = await getCollection();
 
@@ -381,7 +509,8 @@ async function saveResolvedLink(
     {
       $set: {
         shareLink: parsed.originalLink,
-        canonicalLink: parsed.originalLink,
+        canonicalLink: resolvedUrl,
+        resolvedUrl,
         robloxId: id,
         name: name ?? undefined,
         lastUsedAt: now,
@@ -422,6 +551,7 @@ async function resolveSingle(
     {
       id: string;
       name?: string;
+      resolvedUrl?: string;
     }
   >
 ): Promise<ResolveResult> {
@@ -440,6 +570,9 @@ async function resolveSingle(
       success: true,
       id: cached.id,
       name: cached.name,
+      resolvedUrl:
+        getResolvedUrl(cached.resolvedUrl) ??
+        buildResolvedUrl(parsed.linkType, cached.id, cached.name),
       source: "cache",
     };
   }
@@ -450,21 +583,29 @@ async function resolveSingle(
     const selectedCookie = await getResolverCookie();
     managedCookieId = selectedCookie.id;
 
-    const id = await resolveFromRoblox(
+    const resolved = await resolveFromRoblox(
       parsed.shareCode,
       parsed.linkType,
       selectedCookie.value
     );
 
     const name = await getRobloxItemName(
-      id,
+      resolved.id,
       parsed.linkType
     );
+    const resolvedUrl =
+      resolved.resolvedUrl ??
+      buildResolvedUrl(
+        parsed.linkType,
+        resolved.id,
+        name ?? undefined
+      );
 
     await saveResolvedLink(
       parsed,
-      id,
-      name
+      resolved.id,
+      name,
+      resolvedUrl
     );
 
     if (managedCookieId) {
@@ -474,8 +615,9 @@ async function resolveSingle(
     return {
       link: parsed.originalLink,
       success: true,
-      id,
+      id: resolved.id,
       name: name ?? undefined,
+      resolvedUrl,
       source: "roblox",
     };
   } catch (error) {
@@ -566,6 +708,8 @@ export async function POST(request: Request) {
       linkType: string;
       robloxId?: string;
       name?: string;
+      resolvedUrl?: string;
+      canonicalLink?: string;
     }> = [];
 
     if (parsedLinks.length > 0) {
@@ -579,6 +723,7 @@ export async function POST(request: Request) {
     {
         id: string;
         name?: string;
+        resolvedUrl?: string;
     }
     >();
 
@@ -594,6 +739,14 @@ export async function POST(request: Request) {
         cachedMap.set(cacheKey, {
         id: document.robloxId,
         name: document.name,
+          resolvedUrl:
+            getResolvedUrl(document.resolvedUrl) ??
+            getResolvedUrl(document.canonicalLink) ??
+            buildResolvedUrl(
+              document.linkType,
+              document.robloxId,
+              document.name
+            ),
         });
     }
     }
